@@ -3,6 +3,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.steelbridgelabs.oss.neo4j.structure.Neo4JElementIdProvider;
 import com.steelbridgelabs.oss.neo4j.structure.Neo4JGraph;
 import com.steelbridgelabs.oss.neo4j.structure.providers.Neo4JNativeElementIdProvider;
+import org.apache.commons.configuration.BaseConfiguration;
+import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -13,6 +15,7 @@ import org.neo4j.driver.v1.AuthToken;
 import org.neo4j.driver.v1.AuthTokens;
 import org.neo4j.driver.v1.Driver;
 import org.neo4j.driver.v1.GraphDatabase;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -46,12 +49,24 @@ public class TPGraphMain {
         return graph;
     }
 
+    public static Graph createPostgresGraph() {
+        String jdbcUrl = "jdbc:postgresql://localhost:5432/json2tp";
+        String jdbcUsername = "postgres";
+        String jdbcPassword = "postgres";
+        Configuration config = new BaseConfiguration();
+        config.setProperty("jdbc.url", jdbcUrl);
+        config.setProperty("jdbc.username", jdbcUsername);
+        config.setProperty("jdbc.password", jdbcPassword);
+        graph = SqlgGraph.open(config);
+        return graph;
+    }
+
     public static String createLabel() {
         return UUID.randomUUID().toString();
     }
 
     public static Object createVertex(Graph graph, String label, Vertex parentVertex, JsonNode jsonObject) {
-        Vertex vertex = graph.addVertex(createLabel());
+        Vertex vertex = graph.addVertex(label);
         jsonObject.fields().forEachRemaining(entry -> {
             JsonNode entryValue = entry.getValue();
             if (entryValue.isValueNode()) {
@@ -107,6 +122,8 @@ public class TPGraphMain {
         }
     }
 
+    public static enum DBTYPE {NEO4J, POSTGRES};
+
 
     // Expectation
     // Only one Grouping vertex = "teachers"  (plural of your parent vertex)
@@ -114,14 +131,19 @@ public class TPGraphMain {
     // Multiple child vertex = address
     // For every parent vertex and child vertex, there is a single Edge between
     //    teacher -> address
-
     public static void main(String[] args) throws IOException {
-        createNeo4jGraph();
+        DBTYPE target = DBTYPE.POSTGRES;
 
-        for (int i = 0; i < 1000000; i++) {
+        if (target == DBTYPE.NEO4J) {
+            createNeo4jGraph();
+        } else if (target == DBTYPE.POSTGRES){
+            createPostgresGraph();
+        }
+
+        for (int i = 0; i < 10; i++) {
             String jsonString = "{\"teacher\": {\"firstName\":\"person_fn\",\"lastName\":\"person_ln\", \"address\": {\"door\": 10}}}";
-            jsonString = jsonString.replace("person_fn", "John");
-            jsonString = jsonString.replace("person_ln", "Ram");
+            jsonString = jsonString.replace("person_fn", "John" + i);
+            jsonString = jsonString.replace("person_ln", "Ram" + i);
 
             Instant startTime = Instant.now();
 

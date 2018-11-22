@@ -81,6 +81,20 @@
             <artifactId>neo4j-gremlin-bolt</artifactId>
             <version>0.2.27</version>
         </dependency>
+
+        <!-- start SQL - Postgres -->
+        <dependency>
+            <groupId>org.umlg</groupId>
+            <artifactId>sqlg-postgres</artifactId>
+            <version>1.5.2</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-nop</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- End SQL - Postgres -->
     </dependencies>
 
 
