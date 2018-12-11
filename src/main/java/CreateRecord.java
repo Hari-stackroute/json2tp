@@ -26,16 +26,19 @@ public class CreateRecord extends Thread {
     public void run() {
         System.out.println(id + " Create record");
         Instant startTime = Instant.now();
+        Vertex v = null;
         try {
             try (Graph graph = TPUtils.getGraph(target)) {
                 try {
                     try (Transaction tx = graph.tx()) {
-                        TPUtils.processNode(graph, entityType, groupV, rootNode);
+                        v = TPUtils.processNode(graph, entityType, groupV, rootNode);
                         tx.commit();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+
+                System.out.println(TPUtils.readGraph2Json(graph, v.id().toString()));
             }
         } catch (Exception e) {
             System.out.println("Can't run this instance of the thread");

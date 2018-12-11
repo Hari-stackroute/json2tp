@@ -1,129 +1,18 @@
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.steelbridgelabs.oss.neo4j.structure.Neo4JElementIdProvider;
-import com.steelbridgelabs.oss.neo4j.structure.Neo4JGraph;
-import com.steelbridgelabs.oss.neo4j.structure.providers.Neo4JNativeElementIdProvider;
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.neo4j.driver.v1.AuthToken;
-import org.neo4j.driver.v1.AuthTokens;
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.GraphDatabase;
-import org.umlg.sqlg.structure.SqlgGraph;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TPGraphMain {
-    private static Graph graph;
-    private static Driver driver;
 
-    public static Graph createNeo4jGraph() {
-        boolean withAuth = true;
-        String databaseHost = "localhost";
-        String databasePort = "7687";
-        /*Boolean profilerEnabled = Boolean
-                .parseBoolean(environment.getProperty("database.neo4j.profiler_enabled"));*/
-        AuthToken authToken = AuthTokens.basic("neo4j", "stackroute1!");
-
-        if (withAuth) {
-            driver = GraphDatabase.driver(String.format("bolt://%s:%s", databaseHost, databasePort),
-                    authToken);
-        } else {
-            driver = GraphDatabase.driver(String.format("bolt://%s:%s", databaseHost, databasePort),
-                    AuthTokens.none());
-        }
-        //Neo4JElementIdProvider<?> idProvider = new Neo4JNativeElementIdProvider();
-        Neo4JElementIdProvider<?> idProvider = new RecordIdProvider();
-        Neo4JGraph neo4JGraph = new Neo4JGraph(driver, idProvider, idProvider);
-        //neo4JGraph.setProfilerEnabled(profilerEnabled);
-        graph = neo4JGraph;
-
-        return graph;
+    public static String getParent(JsonNode rootNode) {
+        return rootNode.fieldNames().next();
     }
-
-    public static Graph createPostgresGraph() {
-        String jdbcUrl = "jdbc:postgresql://localhost:5432/json2tp";
-        String jdbcUsername = "postgres";
-        String jdbcPassword = "postgres";
-        Configuration config = new BaseConfiguration();
-        config.setProperty("jdbc.url", jdbcUrl);
-        config.setProperty("jdbc.username", jdbcUsername);
-        config.setProperty("jdbc.password", jdbcPassword);
-        graph = SqlgGraph.open(config);
-        return graph;
-    }
-
-    public static String createLabel() {
-        return UUID.randomUUID().toString();
-    }
-
-    public static Object createVertex(Graph graph, String label, Vertex parentVertex, JsonNode jsonObject) {
-        Vertex vertex = graph.addVertex(label);
-        vertex.property("osid", vertex.id());
-        jsonObject.fields().forEachRemaining(entry -> {
-            JsonNode entryValue = entry.getValue();
-            if (entryValue.isValueNode()) {
-                vertex.property(entry.getKey(), entryValue.asText());
-            } else if (entryValue.isObject()) {
-                createVertex(graph, entry.getKey(), vertex, entryValue);
-            }
-        });
-        Edge e = addEdge(graph, label, parentVertex, vertex);
-        return e.id();
-    }
-
-    public static Edge addEdge(Graph graph, String label, Vertex v1, Vertex v2) {
-        return v1.addEdge(label, v2);
-    }
-
-    public static Vertex createParentVertex() {
-        String personsStr = "Persons";
-        String personsId = "ParentEntity_Persons";
-        GraphTraversalSource gtRootTraversal = graph.traversal();
-        GraphTraversal<Vertex, Vertex> rootVertex = gtRootTraversal.V().hasLabel(personsStr);
-        Vertex parentVertex = null;
-        if (!rootVertex.hasNext()) {
-            parentVertex = graph.addVertex(personsStr);
-            parentVertex.property("osid", parentVertex.id());
-            parentVertex.property("label", personsStr);
-        } else {
-            parentVertex = rootVertex.next();
-        }
-
-        return parentVertex;
-    }
-
-    public static List<String> verticesCreated = new ArrayList<String>();
-
-    public static void processNode(String parentName, Vertex parentVertex, JsonNode node) {
-        Iterator<Map.Entry<String, JsonNode>> entryIterator = node.fields();
-        while (entryIterator.hasNext()) {
-            Map.Entry<String, JsonNode> entry = entryIterator.next();
-            if (entry.getValue().isValueNode()) {
-                // Create properties
-                System.out.println("Create properties within vertex " + parentName);
-                System.out.println(parentName + ":" + entry.getKey() + " --> " + entry.getValue());
-                parentVertex.property(entry.getKey(), entry.getValue());
-            } else if (entry.getValue().isObject()) {
-                Object edgeid = createVertex(graph, entry.getKey(), parentVertex, entry.getValue());
-                parentVertex.property(entry.getKey() + "_osid", edgeid);
-            } else if (entry.getValue().isArray()) {
-                // TODO
-            }
-        }
-    }
-
-    public static enum DBTYPE {NEO4J, POSTGRES};
-
 
     // Expectation
     // Only one Grouping vertex = "teachers"  (plural of your parent vertex)
@@ -131,33 +20,62 @@ public class TPGraphMain {
     // Multiple child vertex = address
     // For every parent vertex and child vertex, there is a single Edge between
     //    teacher -> address
-    public static void main(String[] args) throws IOException {
-        DBTYPE target = DBTYPE.NEO4J;
+    public static void main(String[] args) {
+        TPUtils.DBTYPE target = TPUtils.DBTYPE.NEO4J;
+        int concurrencyLevel = 40;
+        int currentLevel = 0;
+        List<Thread> threadList = new ArrayList<>();
 
-        if (target == DBTYPE.NEO4J) {
-            createNeo4jGraph();
-        } else if (target == DBTYPE.POSTGRES){
-            createPostgresGraph();
-        }
+        //String jsonString = "{\"Teacher\": {  \"signatures\": {    \"@type\": \"sc:GraphSignature2012\",    \"signatureFor\": \"http://localhost:8080/serialNum\",    \"creator\": \"https://example.com/i/pat/keys/5\",    \"created\": \"2017-09-23T20:21:34Z\",    \"nonce\": \"2bbgh3dgjg2302d-d2b3gi423d42\",    \"signatureValue\": \"eyiOiJKJ0eXA...OEjgFWFXk\"      },  \"serialNum\": _SL_NUM_,  \"teacherCode\": \"_TC_\",  \"nationalIdentifier\": \"1234567890123456\",  \"teacherName\": \"_NAME_\",  \"gender\": \"GenderTypeCode-MALE\",  \"birthDate\": \"1990-12-06\",  \"socialCategory\": \"SocialCategoryTypeCode-GENERAL\",  \"highestAcademicQualification\": \"AcademicQualificationTypeCode-PHD\",  \"highestTeacherQualification\": \"TeacherQualificationTypeCode-MED\",  \"yearOfJoiningService\": \"2014\",  \"teachingRole\": {    \"@type\": \"TeachingRole\",    \"teacherType\": \"TeacherTypeCode-HEAD\",    \"appointmentType\": \"TeacherAppointmentTypeCode-REGULAR\",    \"classesTaught\": \"ClassTypeCode-SECONDARYANDHIGHERSECONDARY\",    \"appointedForSubjects\": \"SubjectCode-ENGLISH\",    \"mainSubjectsTaught\":       \"SubjectCode-SOCIALSTUDIES\",     \"appointmentYear\": \"2015\"      },  \"inServiceTeacherTrainingFromBRC\": {    \"@type\": \"InServiceTeacherTrainingFromBlockResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"10\"      },  \"inServiceTeacherTrainingFromCRC\": {    \"@type\": \"InServiceTeacherTrainingFromClusterResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"2\"      },  \"inServiceTeacherTrainingFromDIET\": {    \"@type\": \"InServiceTeacherTrainingFromDIET\",    \"daysOfInServiceTeacherTraining\": \"5.5\"      },  \"inServiceTeacherTrainingFromOthers\": {    \"@type\": \"InServiceTeacherTrainingFromOthers\",    \"daysOfInServiceTeacherTraining\": \"3.5\"      },  \"nonTeachingAssignmentsForAcademicCalendar\": {    \"@type\": \"NonTeachingAssignmentsForAcademicCalendar\",    \"daysOfNonTeachingAssignments\": \"6\"      },  \"basicProficiencyLevel\":         {      \"@type\": \"BasicProficiencyLevel\",      \"proficiencySubject\": \"SubjectCode-MATH\",      \"proficiencyAcademicQualification\": \"AcademicQualificationTypeCode-PHD\"        },  \"disabilityType\": \"DisabilityCode-NA\",  \"trainedForChildrenSpecialNeeds\": \"YesNoCode-YES\",  \"trainedinUseOfComputer\": \"YesNoCode-YES\"    }}";
+        String jsonString = "{\"A\":{ \"B1\": {\"C\":\"D\"}, \"B2\": \"C2\"}}";
 
-        for (int i = 0; i < 10; i++) {
-            String jsonString = "{\"teacher\": {\"firstName\":\"person_fn\",\"lastName\":\"person_ln\", \"address\": {\"door\": 10}}}";
-            jsonString = jsonString.replace("person_fn", "John" + i);
-            jsonString = jsonString.replace("person_ln", "Ram" + i);
-
-            Instant startTime = Instant.now();
-
-            ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
+        try {
             JsonNode rootNode = mapper.readTree(jsonString);
-            Transaction tx = graph.tx();
-            processNode(null, createParentVertex(), rootNode);
-            tx.commit();
+            String rootName = getParent(rootNode);
+            System.out.println("Parent Name = " + rootName);
 
-            Instant endTime = Instant.now();
-            System.out.println(i + "," +
-                    Duration.between(startTime, endTime).toNanos() + "," +
-                    Duration.between(startTime, endTime).toMillis() + "," +
-                    Duration.between(startTime, endTime).toMinutes());
+
+            // Check the rootVertex
+            Vertex rootVertex;
+            // Just to check if we could have a valid connection
+            try (Graph graph = TPUtils.getGraph(target)) {
+                try (Transaction tx = graph.tx()) {
+                    rootVertex = TPUtils.createParentVertex(graph, rootName + "_GROUP");
+                    tx.commit();
+                }
+            }
+
+            for (int i = 1; i <= 1; i++) {
+                jsonString = jsonString.replace("_NAME_", "John" + i);
+                jsonString = jsonString.replace("_SL_NUM_", "" + i);
+                jsonString = jsonString.replace("_TC_", "_TC_" + i);
+
+                CreateRecord cr = new CreateRecord(rootNode, rootName, target, rootVertex, i);
+
+                if (currentLevel != concurrencyLevel) {
+                    Thread thread = new Thread(cr);
+                    thread.start();
+                    threadList.add(thread);
+                    currentLevel++;
+                } else {
+                    threadList.forEach(thread -> {
+                        try {
+                            thread.join(5000);
+
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    });
+                    threadList.clear();
+                    currentLevel = 0;
+                    System.out.println(i + " Cleared all threads");
+                }
+            }
+        } catch (IOException ioe) {
+            System.out.println("Can't read json " + ioe);
+        } catch (Exception e) {
+            System.out.println("Can't close autocloseable " + e);
         }
     }
 }
