@@ -32,7 +32,7 @@ public class RecordIdProvider implements Neo4JElementIdProvider<String> {
 
     public String matchPredicateOperand(String alias) {
         Objects.requireNonNull(alias, "alias cannot be null");
-        return "ID(" + alias + ")";
+        return alias + ".osid";
     }
 }
 

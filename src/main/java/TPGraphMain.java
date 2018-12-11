@@ -41,7 +41,8 @@ public class TPGraphMain {
             driver = GraphDatabase.driver(String.format("bolt://%s:%s", databaseHost, databasePort),
                     AuthTokens.none());
         }
-        Neo4JElementIdProvider<?> idProvider = new Neo4JNativeElementIdProvider();
+        //Neo4JElementIdProvider<?> idProvider = new Neo4JNativeElementIdProvider();
+        Neo4JElementIdProvider<?> idProvider = new RecordIdProvider();
         Neo4JGraph neo4JGraph = new Neo4JGraph(driver, idProvider, idProvider);
         //neo4JGraph.setProfilerEnabled(profilerEnabled);
         graph = neo4JGraph;
@@ -67,6 +68,7 @@ public class TPGraphMain {
 
     public static Object createVertex(Graph graph, String label, Vertex parentVertex, JsonNode jsonObject) {
         Vertex vertex = graph.addVertex(label);
+        vertex.property("osid", vertex.id());
         jsonObject.fields().forEachRemaining(entry -> {
             JsonNode entryValue = entry.getValue();
             if (entryValue.isValueNode()) {
@@ -91,7 +93,7 @@ public class TPGraphMain {
         Vertex parentVertex = null;
         if (!rootVertex.hasNext()) {
             parentVertex = graph.addVertex(personsStr);
-            parentVertex.property("id", personsId);
+            parentVertex.property("osid", parentVertex.id());
             parentVertex.property("label", personsStr);
         } else {
             parentVertex = rootVertex.next();
@@ -103,8 +105,6 @@ public class TPGraphMain {
     public static List<String> verticesCreated = new ArrayList<String>();
 
     public static void processNode(String parentName, Vertex parentVertex, JsonNode node) {
-        List<Object> idLst = new ArrayList<Object>();
-
         Iterator<Map.Entry<String, JsonNode>> entryIterator = node.fields();
         while (entryIterator.hasNext()) {
             Map.Entry<String, JsonNode> entry = entryIterator.next();
@@ -115,7 +115,7 @@ public class TPGraphMain {
                 parentVertex.property(entry.getKey(), entry.getValue());
             } else if (entry.getValue().isObject()) {
                 Object edgeid = createVertex(graph, entry.getKey(), parentVertex, entry.getValue());
-                parentVertex.property("id", idLst.add(edgeid));
+                parentVertex.property(entry.getKey() + "_osid", edgeid);
             } else if (entry.getValue().isArray()) {
                 // TODO
             }
@@ -132,7 +132,7 @@ public class TPGraphMain {
     // For every parent vertex and child vertex, there is a single Edge between
     //    teacher -> address
     public static void main(String[] args) throws IOException {
-        DBTYPE target = DBTYPE.POSTGRES;
+        DBTYPE target = DBTYPE.NEO4J;
 
         if (target == DBTYPE.NEO4J) {
             createNeo4jGraph();
