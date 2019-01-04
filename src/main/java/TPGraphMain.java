@@ -5,6 +5,8 @@ import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,8 @@ public class TPGraphMain {
         int concurrencyLevel = 40;
         int currentLevel = 0;
         List<Thread> threadList = new ArrayList<>();
+
+        Instant startTime = Instant.now();
 
         String jsonString = "{\"Teacher\": {  \"signatures\": {    \"@type\": \"sc:GraphSignature2012\",    \"signatureFor\": \"http://localhost:8080/serialNum\",    \"creator\": \"https://example.com/i/pat/keys/5\",    \"created\": \"2017-09-23T20:21:34Z\",    \"nonce\": \"2bbgh3dgjg2302d-d2b3gi423d42\",    \"signatureValue\": \"eyiOiJKJ0eXA...OEjgFWFXk\"      },  \"serialNum\": \"_SL_NUM_\",  \"teacherCode\": \"_TC_\",  \"nationalIdentifier\": \"1234567890123456\",  \"teacherName\": \"_NAME_\",  \"gender\": \"GenderTypeCode-MALE\",  \"birthDate\": \"1990-12-06\",  \"socialCategory\": \"SocialCategoryTypeCode-GENERAL\",  \"highestAcademicQualification\": \"AcademicQualificationTypeCode-PHD\",  \"highestTeacherQualification\": \"TeacherQualificationTypeCode-MED\",  \"yearOfJoiningService\": \"2014\",  \"teachingRole\": {    \"@type\": \"TeachingRole\",    \"teacherType\": \"TeacherTypeCode-HEAD\",    \"appointmentType\": \"TeacherAppointmentTypeCode-REGULAR\",    \"classesTaught\": \"ClassTypeCode-SECONDARYANDHIGHERSECONDARY\",    \"appointedForSubjects\": \"SubjectCode-ENGLISH\",    \"mainSubjectsTaught\":       \"SubjectCode-SOCIALSTUDIES\",     \"appointmentYear\": \"2015\"      },  \"inServiceTeacherTrainingFromBRC\": {    \"@type\": \"InServiceTeacherTrainingFromBlockResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"10\"      },  \"inServiceTeacherTrainingFromCRC\": {    \"@type\": \"InServiceTeacherTrainingFromClusterResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"2\"      },  \"inServiceTeacherTrainingFromDIET\": {    \"@type\": \"InServiceTeacherTrainingFromDIET\",    \"daysOfInServiceTeacherTraining\": \"5.5\"      },  \"inServiceTeacherTrainingFromOthers\": {    \"@type\": \"InServiceTeacherTrainingFromOthers\",    \"daysOfInServiceTeacherTraining\": \"3.5\"      },  \"nonTeachingAssignmentsForAcademicCalendar\": {    \"@type\": \"NonTeachingAssignmentsForAcademicCalendar\",    \"daysOfNonTeachingAssignments\": \"6\"      },  \"basicProficiencyLevel\":         {      \"@type\": \"BasicProficiencyLevel\",      \"proficiencySubject\": \"SubjectCode-MATH\",      \"proficiencyAcademicQualification\": \"AcademicQualificationTypeCode-PHD\"        },  \"disabilityType\": \"DisabilityCode-NA\",  \"trainedForChildrenSpecialNeeds\": \"YesNoCode-YES\",  \"trainedinUseOfComputer\": \"YesNoCode-YES\"    }}";
         //String jsonString = "{\"A\":{ \"B1\": {\"C\":\"D\"}, \"B2\": \"C2\"}}";
@@ -80,6 +84,11 @@ public class TPGraphMain {
             System.out.println("Can't read json " + ioe);
         } catch (Exception e) {
             System.out.println("Can't close autocloseable " + e);
+        } finally {
+            Instant endTime = Instant.now();
+            System.out.println(" Total time taken " +
+                    Duration.between(startTime, endTime).toNanos() + "nanos," +
+                    Duration.between(startTime, endTime).toMillis() + "ms");
         }
     }
 }
