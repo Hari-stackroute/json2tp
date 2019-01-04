@@ -11,7 +11,11 @@ import java.util.List;
 public class TPGraphMain {
 
     public static String getParent(JsonNode rootNode) {
-        return rootNode.fieldNames().next();
+
+        if (rootNode.isObject()) {
+            return rootNode.fields().next().toString();
+        }
+        return "";
     }
 
     // Expectation
@@ -26,8 +30,8 @@ public class TPGraphMain {
         int currentLevel = 0;
         List<Thread> threadList = new ArrayList<>();
 
-        //String jsonString = "{\"Teacher\": {  \"signatures\": {    \"@type\": \"sc:GraphSignature2012\",    \"signatureFor\": \"http://localhost:8080/serialNum\",    \"creator\": \"https://example.com/i/pat/keys/5\",    \"created\": \"2017-09-23T20:21:34Z\",    \"nonce\": \"2bbgh3dgjg2302d-d2b3gi423d42\",    \"signatureValue\": \"eyiOiJKJ0eXA...OEjgFWFXk\"      },  \"serialNum\": _SL_NUM_,  \"teacherCode\": \"_TC_\",  \"nationalIdentifier\": \"1234567890123456\",  \"teacherName\": \"_NAME_\",  \"gender\": \"GenderTypeCode-MALE\",  \"birthDate\": \"1990-12-06\",  \"socialCategory\": \"SocialCategoryTypeCode-GENERAL\",  \"highestAcademicQualification\": \"AcademicQualificationTypeCode-PHD\",  \"highestTeacherQualification\": \"TeacherQualificationTypeCode-MED\",  \"yearOfJoiningService\": \"2014\",  \"teachingRole\": {    \"@type\": \"TeachingRole\",    \"teacherType\": \"TeacherTypeCode-HEAD\",    \"appointmentType\": \"TeacherAppointmentTypeCode-REGULAR\",    \"classesTaught\": \"ClassTypeCode-SECONDARYANDHIGHERSECONDARY\",    \"appointedForSubjects\": \"SubjectCode-ENGLISH\",    \"mainSubjectsTaught\":       \"SubjectCode-SOCIALSTUDIES\",     \"appointmentYear\": \"2015\"      },  \"inServiceTeacherTrainingFromBRC\": {    \"@type\": \"InServiceTeacherTrainingFromBlockResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"10\"      },  \"inServiceTeacherTrainingFromCRC\": {    \"@type\": \"InServiceTeacherTrainingFromClusterResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"2\"      },  \"inServiceTeacherTrainingFromDIET\": {    \"@type\": \"InServiceTeacherTrainingFromDIET\",    \"daysOfInServiceTeacherTraining\": \"5.5\"      },  \"inServiceTeacherTrainingFromOthers\": {    \"@type\": \"InServiceTeacherTrainingFromOthers\",    \"daysOfInServiceTeacherTraining\": \"3.5\"      },  \"nonTeachingAssignmentsForAcademicCalendar\": {    \"@type\": \"NonTeachingAssignmentsForAcademicCalendar\",    \"daysOfNonTeachingAssignments\": \"6\"      },  \"basicProficiencyLevel\":         {      \"@type\": \"BasicProficiencyLevel\",      \"proficiencySubject\": \"SubjectCode-MATH\",      \"proficiencyAcademicQualification\": \"AcademicQualificationTypeCode-PHD\"        },  \"disabilityType\": \"DisabilityCode-NA\",  \"trainedForChildrenSpecialNeeds\": \"YesNoCode-YES\",  \"trainedinUseOfComputer\": \"YesNoCode-YES\"    }}";
-        String jsonString = "{\"A\":{ \"B1\": {\"C\":\"D\"}, \"B2\": \"C2\"}}";
+        String jsonString = "{\"Teacher\": {  \"signatures\": {    \"@type\": \"sc:GraphSignature2012\",    \"signatureFor\": \"http://localhost:8080/serialNum\",    \"creator\": \"https://example.com/i/pat/keys/5\",    \"created\": \"2017-09-23T20:21:34Z\",    \"nonce\": \"2bbgh3dgjg2302d-d2b3gi423d42\",    \"signatureValue\": \"eyiOiJKJ0eXA...OEjgFWFXk\"      },  \"serialNum\": \"_SL_NUM_\",  \"teacherCode\": \"_TC_\",  \"nationalIdentifier\": \"1234567890123456\",  \"teacherName\": \"_NAME_\",  \"gender\": \"GenderTypeCode-MALE\",  \"birthDate\": \"1990-12-06\",  \"socialCategory\": \"SocialCategoryTypeCode-GENERAL\",  \"highestAcademicQualification\": \"AcademicQualificationTypeCode-PHD\",  \"highestTeacherQualification\": \"TeacherQualificationTypeCode-MED\",  \"yearOfJoiningService\": \"2014\",  \"teachingRole\": {    \"@type\": \"TeachingRole\",    \"teacherType\": \"TeacherTypeCode-HEAD\",    \"appointmentType\": \"TeacherAppointmentTypeCode-REGULAR\",    \"classesTaught\": \"ClassTypeCode-SECONDARYANDHIGHERSECONDARY\",    \"appointedForSubjects\": \"SubjectCode-ENGLISH\",    \"mainSubjectsTaught\":       \"SubjectCode-SOCIALSTUDIES\",     \"appointmentYear\": \"2015\"      },  \"inServiceTeacherTrainingFromBRC\": {    \"@type\": \"InServiceTeacherTrainingFromBlockResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"10\"      },  \"inServiceTeacherTrainingFromCRC\": {    \"@type\": \"InServiceTeacherTrainingFromClusterResourceCentre\",    \"daysOfInServiceTeacherTraining\": \"2\"      },  \"inServiceTeacherTrainingFromDIET\": {    \"@type\": \"InServiceTeacherTrainingFromDIET\",    \"daysOfInServiceTeacherTraining\": \"5.5\"      },  \"inServiceTeacherTrainingFromOthers\": {    \"@type\": \"InServiceTeacherTrainingFromOthers\",    \"daysOfInServiceTeacherTraining\": \"3.5\"      },  \"nonTeachingAssignmentsForAcademicCalendar\": {    \"@type\": \"NonTeachingAssignmentsForAcademicCalendar\",    \"daysOfNonTeachingAssignments\": \"6\"      },  \"basicProficiencyLevel\":         {      \"@type\": \"BasicProficiencyLevel\",      \"proficiencySubject\": \"SubjectCode-MATH\",      \"proficiencyAcademicQualification\": \"AcademicQualificationTypeCode-PHD\"        },  \"disabilityType\": \"DisabilityCode-NA\",  \"trainedForChildrenSpecialNeeds\": \"YesNoCode-YES\",  \"trainedinUseOfComputer\": \"YesNoCode-YES\"    }}";
+        //String jsonString = "{\"A\":{ \"B1\": {\"C\":\"D\"}, \"B2\": \"C2\"}}";
 
         ObjectMapper mapper = new ObjectMapper();
         try {
@@ -46,7 +50,7 @@ public class TPGraphMain {
                 }
             }
 
-            for (int i = 1; i <= 1; i++) {
+            for (int i = 1; i <= 1000; i++) {
                 jsonString = jsonString.replace("_NAME_", "John" + i);
                 jsonString = jsonString.replace("_SL_NUM_", "" + i);
                 jsonString = jsonString.replace("_TC_", "_TC_" + i);
